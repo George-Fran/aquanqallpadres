@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>AQUANQA ll Padres</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    button {
+      width: 90%;
+      max-width: 300px;
+      padding: 14px;
+      margin: 10px 0;
+      font-size: 18px;
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #004d99;
+    }
+    #reader {
+      display: none;
+      margin: 20px auto;
+      width: 100%;
+      max-width: 320px;
+    }
+    #manualForm {
+      display: none;
+      margin-top: 20px;
+    }
+    input {
+      width: 90%;
+      max-width: 300px;
+      padding: 12px;
+      font-size: 16px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #mensaje {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #006600;
+    }
+    a {
+      display: block;
+      margin-top: 30px;
+      color: #0066cc;
+      font-size: 16px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>Registro de Padres A<span style="color: #004d99;">Q</span>UANQA <span style="color: #006600;">ll</span></h2>
+
+  <button onclick="mostrarCamara()">📷 Registrar por cámara</button>
+  <button onclick="mostrarManual()">✍️ Registrar manualmente</button>
+
+  <div id="reader"></div>
+
+  <div id="manualForm">
+    <input type="text" id="dniInput" placeholder="Ingresa tu DNI">
+    <button onclick="verificarManual()">Verificar DNI</button>
+  </div>
+
+  <p id="mensaje"></p>
+
+  <a href="/descargar">📥 Descargar Excel de Registros</a>
+
+  <script>
+    const scanner = new Html5Qrcode("reader");
+    let dniEscaneado = "";
+
+    function mostrarCamara() {
+      document.getElementById("reader").style.display = "block";
+      document.getElementById("manualForm").style.display = "none";
+      document.getElementById("mensaje").innerText = "";
+      document.getElementById("confirmarBtn")?.remove();
+      iniciarEscaneo();
+    }
+
+    function mostrarManual() {
+      document.getElementById("manualForm").style.display = "block";
+      document.getElementById("reader").style.display = "none";
+      scanner.stop().catch(() => {});
+      document.getElementById("mensaje").innerText = "";
+      document.getElementById("confirmarBtn")?.remove();
+    }
+
+    function iniciarEscaneo() {
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices.length) {
+          scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 200 },
+            qrCodeMessage => {
+              scanner.stop();
+              verificarDNI(qrCodeMessage.trim());
+            },
+            error => {}
+          );
+        }
+      });
+    }
+
+    function verificarDNI(dni) {
+      fetch('/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni })
+      })
+      .then(res => res.json())
+      .then(data => {
+        dniEscaneado = dni;
+        document.getElementById('mensaje').innerText = data.msg;
+        document.getElementById('mensaje').style.color = data.ok ? 'green' : 'red';
+
+        if (data.ok) {
+          if (!document.getElementById('confirmarBtn')) {
+            const btn = document.createElement('button');
+            btn.id = 'confirmarBtn';
+            btn.innerText = '✅ Confirmar Registro';
+            btn.onclick = () => enviarDNI(dniEscaneado);
+            document.body.appendChild(btn);
+          }
+        } else {
+          document.getElementById('confirmarBtn')?.remove();
+        }
+      });
+    }
+
+    function verificarManual() {
+      const dni = document.getElementById("dniInput").value.trim();
+      if (!dni) return alert("Ingrese un DNI válido");
+
+      document.getElementById("mensaje").innerText = "Validando...";
+      dniEscaneado = "";
+
+      fetch('/verificar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni })
+      })
+      .then(res => res.json())
+      .then(data => {
+        dniEscaneado = dni;
+        document.getElementById('mensaje').innerText = data.msg;
+        document.getElementById('mensaje').style.color = data.ok ? 'green' : 'red';
+
+        if (data.ok) {
+          if (!document.getElementById('confirmarBtn')) {
+            const btn = document.createElement('button');
+            btn.id = 'confirmarBtn';
+            btn.innerText = '✅ Confirmar Registro';
+            btn.onclick = () => enviarDNI(dniEscaneado);
+            document.body.appendChild(btn);
+          }
+        } else {
+          document.getElementById('confirmarBtn')?.remove();
+        }
+      });
+    }
+
+    function enviarDNI(dni) {
+      fetch('/registrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dni })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('mensaje').innerText = data.msg;
+        document.getElementById('mensaje').style.color = 'green';
+        document.getElementById('confirmarBtn')?.remove();
+      });
+    }
+  </script>
+</body>
+</html>
